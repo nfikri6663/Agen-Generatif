@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Agen Generatif</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #1a1a1a;
+        }
+        #simulation-world {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background-color: #a3d9a5; /* Warna rumput */
+            border: 2px solid #555;
+            border-radius: 10px;
+            margin-top: 20px;
+            background-image: url('https://www.transparenttextures.com/patterns/light-grass.png');
+        }
+        .agent {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background-color: #89cff0;
+            border: 2px solid #005f8c;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 5px;
+            box-sizing: border-box;
+            transition: top 1s ease-in-out, left 1s ease-in-out; /* Animasi pergerakan */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .agent-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .agent-status {
+            font-size: 11px;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        #info-box {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Visualisasi Simulasi Agen Generatif</h1>
+    <div id="info-box">
+        Waktu Simulasi: <span id="sim-time">Memuat...</span>
+    </div>
+    <div id="simulation-world">
+        </div>
+
+    <script>
+        // Definisikan koordinat untuk setiap lokasi di dunia simulasi kita
+        const locationCoordinates = {
+            "Rumah": { top: "50px", left: "50px" },
+            "Dapur": { top: "60px", left: "150px" },
+            "Bengkel": { top: "450px", left: "100px" },
+            "Taman": { top: "250px", left: "400px" },
+            "Balai Kota": { top: "50px", left: "650px" },
+            "Meja Kerja": { top: "150px", left: "50px" },
+            // Tambahkan lokasi lain jika ada
+            "default": { top: "300px", left: "300px" } // Posisi default jika lokasi tidak dikenal
+        };
+
+        async function fetchAndUpdateState() {
+            try {
+                // Panggil API backend kita
+                const response = await fetch("http://127.0.0.1:8000/state");
+                const data = await response.json();
+
+                // Update waktu simulasi
+                document.getElementById('sim-time').textContent = data.simulation_time;
+
+                const world = document.getElementById('simulation-world');
+                const existingAgents = new Set(Array.from(world.children).map(child => child.id));
+
+                // Update atau buat elemen untuk setiap agen
+                for (const agentData of data.agents) {
+                    const agentId = `agent-${agentData.name}`;
+                    let agentElement = document.getElementById(agentId);
+
+                    // Jika elemen agen belum ada, buat baru
+                    if (!agentElement) {
+                        agentElement = document.createElement('div');
+                        agentElement.id = agentId;
+                        agentElement.className = 'agent';
+                        agentElement.innerHTML = `<div class="agent-name"></div><div class="agent-status"></div>`;
+                        world.appendChild(agentElement);
+                    }
+
+                    // Update informasi dan posisi agen
+                    agentElement.querySelector('.agent-name').textContent = agentData.name;
+                    agentElement.querySelector('.agent-status').textContent = agentData.status;
+
+                    const coords = locationCoordinates[agentData.location] || locationCoordinates.default;
+                    agentElement.style.top = coords.top;
+                    agentElement.style.left = coords.left;
+
+                    // Hapus agen dari set agen yang ada agar tidak dihapus
+                    existingAgents.delete(agentId);
+                }
+
+                // Hapus elemen agen yang sudah tidak ada di data (jika ada)
+                existingAgents.forEach(agentIdToRemove => {
+                    document.getElementById(agentIdToRemove).remove();
+                });
+
+            } catch (error) {
+                console.error("Gagal mengambil status simulasi:", error);
+                document.getElementById('sim-time').textContent = "Error: Pastikan server backend berjalan.";
+            }
+        }
+
+        // Panggil fungsi pertama kali, lalu ulangi setiap 2 detik
+        fetchAndUpdateState();
+        setInterval(fetchAndUpdateState, 2000); // 2000 ms = 2 detik
+    </script>
+</body>
+</html>
